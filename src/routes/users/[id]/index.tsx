@@ -1,12 +1,13 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import { $, component$, type QRL } from "@builder.io/qwik";
+import type { HTMLAttributes, QwikIntrinsicElements } from "@builder.io/qwik";
+import { component$ } from "@builder.io/qwik";
 import { routeLoader$ } from "@builder.io/qwik-city";
-import type { SubmitHandler } from "@modular-forms/qwik";
+import type { InitialValues } from "@modular-forms/qwik";
 import { formAction$, useForm, valiForm$ } from "@modular-forms/qwik";
 import * as v from "valibot";
-import { users } from "~/db/users";
+import { db } from "~/db";
 
 const LoginSchema = v.object({
+  name: v.pipe(v.string(), v.nonEmpty("Please enter your name")),
   email: v.pipe(
     v.string(),
     v.nonEmpty("Please enter your email."),
@@ -17,29 +18,35 @@ const LoginSchema = v.object({
 type LoginForm = v.InferInput<typeof LoginSchema>;
 
 // default values
-export const useFormLoader = routeLoader$(({ params: { id } }) => {
-  return users.find((u) => u.id === id) || { email: "" };
-});
+export const useFormLoader = routeLoader$<InitialValues<LoginForm>>(
+  // @ts-ignore
+  async ({ params: { id } }) => {
+    const user = await db.user.findUnique({ where: { id: Number(id) } });
+
+    if (!user) {
+      throw new Error();
+    }
+
+    return user;
+  },
+);
 
 // Runs on server when form is submitted and valid
 const useFormAction = formAction$<LoginForm>(
-  (values, { params: { id }, redirect }) => {
-    let user = users.find((u) => u.id === id);
+  async (data, { params: { id }, redirect }) => {
+    await db.user.update({
+      where: { id: Number(id) },
+      data,
+    });
 
-    if (user) {
-      user = {
-        ...user,
-        email: values.email,
-      };
-
-      return redirect(308, "/users");
-    }
+    return redirect(308, "/users");
   },
   valiForm$(LoginSchema),
 );
 
 export default component$(() => {
-  const [_loginForm, { Form, Field }] = useForm({
+  // eslint-disable-next-line
+  const [_form, { Form, Field }] = useForm({
     loader: useFormLoader(),
     action: useFormAction(),
     validate: valiForm$(LoginSchema),
@@ -47,22 +54,26 @@ export default component$(() => {
     validateOn: "blur",
   });
 
-  // Runs on client
-  const handleSubmit: QRL<SubmitHandler<LoginForm>> = $((values, event) => {
-    console.log(values);
-  });
-
   return (
-    <Form onSubmit$={handleSubmit}>
-      <Field name="email">
-        {(field, props) => (
-          <div>
-            <input {...props} type="email" value={field.value} />
-            {field.error && <div>{field.error}</div>}
-          </div>
-        )}
+    <Form class="flex flex-col gap-3">
+      <Field name="name">
+        {(field, props) => <Input {...props} {...field} />}
       </Field>
-      <button type="submit">Login</button>
+      <Field name="email">
+        {(field, props) => <Input {...props} {...field} type="email" />}
+      </Field>
+      <button type="submit" class="rounded-md bg-black p-3 text-white">
+        Submit
+      </button>
     </Form>
   );
 });
+
+const Input = component$<QwikIntrinsicElements["input"] & { error?: string }>(
+  ({ error, ...inputProps }) => (
+    <div>
+      <input class="border p-2" {...inputProps} />
+      <div class="text-red-400">{error}</div>
+    </div>
+  ),
+);

@@ -1,20 +1,24 @@
 import { component$ } from "@builder.io/qwik";
 import { routeLoader$ } from "@builder.io/qwik-city";
-import { Link } from "@builder.io/qwik-city";
-import { users } from "~/db/users";
+import { db } from "~/db";
 
-export const useUsers = routeLoader$(() => users);
+export const useGetUsers = routeLoader$(async () => {
+  return await db.user.findMany();
+});
 
 export default component$(() => {
-  const userSignals = useUsers();
-
+  const users = useGetUsers();
   return (
-    <ul>
-      {userSignals.value.map((u) => (
-        <li key={u.id}>
-          <Link href={`/users/${u.id}`}>{u.email}</Link>
-        </li>
-      ))}
-    </ul>
+    <section>
+      <ul>
+        {users.value.map((user) => (
+          <li key={user.id} class="underline">
+            <a href={`/users/${user.id}`}>
+              {user.name} ({user.email})
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 });
