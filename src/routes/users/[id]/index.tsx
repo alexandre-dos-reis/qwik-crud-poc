@@ -1,12 +1,12 @@
-import type { HTMLAttributes, QwikIntrinsicElements } from "@builder.io/qwik";
 import { component$ } from "@builder.io/qwik";
 import { routeLoader$ } from "@builder.io/qwik-city";
 import type { InitialValues } from "@modular-forms/qwik";
-import { formAction$, useForm, valiForm$ } from "@modular-forms/qwik";
+import { formAction$, valiForm$ } from "@modular-forms/qwik";
 import * as v from "valibot";
+import UserForm from "~/components/forms/UserForm";
 import { db } from "~/db";
 
-const LoginSchema = v.object({
+const loginSchema = v.object({
   name: v.pipe(v.string(), v.nonEmpty("Please enter your name")),
   email: v.pipe(
     v.string(),
@@ -15,9 +15,8 @@ const LoginSchema = v.object({
   ),
 });
 
-type LoginForm = v.InferInput<typeof LoginSchema>;
+type LoginForm = v.InferInput<typeof loginSchema>;
 
-// default values
 export const useFormLoader = routeLoader$<InitialValues<LoginForm>>(
   // @ts-ignore
   async ({ params: { id } }) => {
@@ -41,39 +40,9 @@ const useFormAction = formAction$<LoginForm>(
 
     return redirect(308, "/users");
   },
-  valiForm$(LoginSchema),
+  valiForm$(loginSchema),
 );
 
-export default component$(() => {
-  // eslint-disable-next-line
-  const [_form, { Form, Field }] = useForm({
-    loader: useFormLoader(),
-    action: useFormAction(),
-    validate: valiForm$(LoginSchema),
-    revalidateOn: "blur",
-    validateOn: "blur",
-  });
-
-  return (
-    <Form class="flex flex-col gap-3">
-      <Field name="name">
-        {(field, props) => <Input {...props} {...field} />}
-      </Field>
-      <Field name="email">
-        {(field, props) => <Input {...props} {...field} type="email" />}
-      </Field>
-      <button type="submit" class="rounded-md bg-black p-3 text-white">
-        Submit
-      </button>
-    </Form>
-  );
-});
-
-const Input = component$<QwikIntrinsicElements["input"] & { error?: string }>(
-  ({ error, ...inputProps }) => (
-    <div>
-      <input class="border p-2" {...inputProps} />
-      <div class="text-red-400">{error}</div>
-    </div>
-  ),
-);
+export default component$(() => (
+  <UserForm loader={useFormLoader} action={useFormAction} />
+));
